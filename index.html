@@ -1,0 +1,583 @@
+<title>Collecte Vélos AMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Appli d'atelier AMS : bandeau logo + onglets (Saisie, Historique, Statistiques, Sauvegarde, Listes) ; une vue à la fois */
+:root{
+  --navy:#31235f; --cyan:#00a9d3; --lime:#91ce4e;
+  --bg:#f1f5f8; --panel:#ffffff; --ink:#1f1a3d; --muted:#5d6480; --line:#d5dde6;
+  --accent:#0a8db3; --accent-soft:#dff2f8; --primary:#31235f; --primary-ink:#ffffff; --tab:#91ce4e;
+  --ok:#2f7d32; --ok-soft:#e1f2d3; --hs:#b3261e; --hs-soft:#f8dcd9; --pp:#a35c00; --pp-soft:#fbe8cc; --err:#b3261e;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14122a; --panel:#1d1a38; --ink:#e9e8f6; --muted:#a29fc0; --line:#332f57;
+  --accent:#4fcbea; --accent-soft:#1d3550; --primary:#00a9d3; --primary-ink:#0e0c22; --tab:#91ce4e;
+  --ok:#8fd36a; --ok-soft:#24371f; --hs:#ff8a80; --hs-soft:#432422; --pp:#f2b45e; --pp-soft:#3e2f17; --err:#ff8a80;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14122a; --panel:#1d1a38; --ink:#e9e8f6; --muted:#a29fc0; --line:#332f57;
+  --accent:#4fcbea; --accent-soft:#1d3550; --primary:#00a9d3; --primary-ink:#0e0c22; --tab:#91ce4e;
+  --ok:#8fd36a; --ok-soft:#24371f; --hs:#ff8a80; --hs-soft:#432422; --pp:#f2b45e; --pp-soft:#3e2f17; --err:#ff8a80;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.4;padding-inline:16px;padding-block:12px 40px}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.brand{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
+.logo{background:#ffffff;border-radius:10px;padding:6px 10px;display:flex;border:1px solid var(--line)}
+.logo img{height:52px;width:auto;display:block}
+h1{font-family:var(--f-display);font-weight:700;font-size:1.75rem;margin:0;line-height:1.1;text-wrap:balance}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:.92rem}
+h2{font-family:var(--f-display);font-weight:700;font-size:1.15rem;margin:0}
+.lbl{font-family:var(--f-display);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+nav.tabs{display:flex;gap:2px;border-bottom:2px solid var(--line);overflow-x:auto;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
+nav.tabs button{border:none;border-bottom:4px solid transparent;margin-bottom:-2px;border-radius:0;background:none;color:var(--muted);padding:10px 14px;font-family:var(--f-display);font-weight:700;font-size:1.05rem;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--tab)}
+nav.tabs .badge{display:inline-block;margin-left:6px;font-family:var(--f-mono);font-size:.75rem;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:1px 7px}
+.view{display:flex;flex-direction:column;gap:14px}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:14px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.session{display:grid;grid-template-columns:160px minmax(0,1fr);gap:10px;background:var(--accent-soft);border-radius:8px;padding:10px 12px}
+@media (max-width:480px){.session{grid-template-columns:minmax(0,1fr)}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.inline{flex-direction:row;align-items:center;gap:8px;flex-wrap:wrap}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%;min-width:0}
+.inline input,.inline select{width:auto}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,.chip input:focus-visible+span{outline:2px solid var(--accent);outline-offset:1px}
+input.ref[readonly]{background:var(--accent-soft);border-style:dashed;cursor:default}
+input.ref,input.poids{font-family:var(--f-mono);font-weight:700;font-size:1.25rem}
+.invalid{border-color:var(--err)!important;box-shadow:0 0 0 1px var(--err);border-radius:6px}
+.etats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.etat{font-family:var(--f-display);font-weight:700;font-size:1.05rem;padding:12px 6px;border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer}
+.etat kbd{font-family:var(--f-mono);font-size:.7rem;font-weight:500;opacity:.7;margin-left:4px}
+@media (max-width:480px){.etat kbd{display:none}}
+.etat[aria-pressed="true"][data-v="OK"]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.etat[aria-pressed="true"][data-v="HS"]{background:var(--hs-soft);border-color:var(--hs);color:var(--hs)}
+.etat[aria-pressed="true"][data-v="POUR PIECE"]{background:var(--pp-soft);border-color:var(--pp);color:var(--pp)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{position:relative}
+.chip input{position:absolute;opacity:0;width:1px;height:1px}
+.chip span{display:inline-block;padding:6px 11px;border:1px solid var(--line);border-radius:999px;cursor:pointer;font-weight:500;font-variant-numeric:tabular-nums;user-select:none}
+.chip input:checked+span{background:var(--primary);border-color:var(--primary);color:var(--primary-ink)}
+.details{display:flex;flex-direction:column;gap:12px}
+.details.optional .req{display:none}
+.hint{font-size:.86rem;color:var(--muted);margin:0}
+.req{color:var(--err)}
+.note{border-radius:6px;padding:8px 10px;font-size:.9rem;background:var(--hs-soft)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;cursor:pointer;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 14px;font-weight:600}
+button.primary{background:var(--primary);border-color:var(--primary);color:var(--primary-ink);font-family:var(--f-display);font-size:1.1rem;padding:11px 20px}
+button.ghost{background:transparent}
+button.danger{color:var(--hs);border-color:var(--hs);background:transparent}
+button.small{padding:5px 10px;font-size:.88rem}
+button:disabled{opacity:.5;cursor:not-allowed}
+.msg{font-size:.92rem;min-height:1.3em;margin:0}
+.msg.err{color:var(--err)} .msg.ok{color:var(--ok)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.tablewrap{overflow-x:auto;max-height:640px;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel);font-family:var(--f-display);font-weight:600;text-transform:uppercase;font-size:.75rem;letter-spacing:.05em;color:var(--muted);z-index:1}
+td.num,th.num{text-align:right}
+td.mono{font-family:var(--f-mono);font-weight:700}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:var(--accent-soft)}
+.pill{display:inline-block;font-family:var(--f-display);font-weight:700;font-size:.78rem;padding:2px 8px;border-radius:999px}
+.pill.OK{background:var(--ok-soft);color:var(--ok)} .pill.HS{background:var(--hs-soft);color:var(--hs)} .pill.PP{background:var(--pp-soft);color:var(--pp)}
+.empty{padding:24px 12px;text-align:center;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--panel)}
+.tile b{display:block;font-family:var(--f-display);font-size:1.7rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bar{display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr) 54px 84px;gap:8px;align-items:center;font-size:.88rem;font-variant-numeric:tabular-nums}
+.bar .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{height:12px;background:var(--bg);border-radius:3px;overflow:hidden}
+.bar .fill{display:block;height:100%;background:var(--accent);border-radius:3px}
+.bar .fill.OK{background:var(--ok)} .bar .fill.HS{background:var(--hs)} .bar .fill.PP{background:var(--pp)}
+.bar .n,.bar .w{text-align:right} .bar .w{color:var(--muted)}
+@media (max-width:480px){.bar{grid-template-columns:minmax(0,110px) minmax(0,1fr) 44px}.bar .w{display:none}}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+@media (max-width:480px){.statgrid{grid-template-columns:minmax(0,1fr)}}
+.recent{display:flex;flex-direction:column}
+.recent div{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:.9rem;font-variant-numeric:tabular-nums}
+.recent .mono{font-family:var(--f-mono);font-weight:700}
+.recent .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--hs-soft);border-radius:8px;padding:8px 10px}
+textarea.out{font-family:var(--f-mono);font-size:.78rem;height:90px}
+.lists{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+@media (max-width:480px){.lists{grid-template-columns:minmax(0,1fr)}}
+.tag{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 11px;font-size:.9rem}
+.tag button{border:none;background:none;padding:2px 7px;border-radius:999px;color:var(--muted);font-weight:700}
+.tag button:hover{background:var(--hs-soft);color:var(--hs)}
+.addrow{display:flex;gap:8px}
+.addrow input{flex:1}
+.sync{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:6px 12px;font-size:.88rem;font-weight:600;background:var(--panel)}
+.sync .sdot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+.sync[data-s="ok"] .sdot{background:var(--ok)} .sync[data-s="off"] .sdot{background:var(--hs)} .sync[data-s="wait"] .sdot{background:var(--pp)}
+.sync[data-s="off"]{border-color:var(--hs);color:var(--hs)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="brand">
+    <span class="logo"><img alt="Angers Mob Services" src="data:image/png;base64,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"></span>
+    <div style="flex:1;min-width:0"><h1>Collecte Vélos</h1><p>Réception des vélos à reconditionner · AMS Angers Mob Services</p></div>
+    <button type="button" class="sync" id="sync" data-s="wait" title="Cliquer pour synchroniser maintenant"><span class="sdot"></span><span id="sync-t">Connexion…</span></button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" data-view="saisie" aria-selected="true">Saisie</button>
+    <button type="button" role="tab" data-view="historique" aria-selected="false">Historique<span class="badge" id="b-total">0</span></button>
+    <button type="button" role="tab" data-view="stats" aria-selected="false">Statistiques</button>
+    <button type="button" role="tab" data-view="sauvegarde" aria-selected="false">Sauvegarde</button>
+    <button type="button" role="tab" data-view="listes" aria-selected="false">Listes</button>
+  </nav>
+
+  <!-- SAISIE -->
+  <section class="view" id="v-saisie" role="tabpanel">
+    <div class="grid">
+      <form class="panel" id="form" novalidate autocomplete="off">
+        <div class="session">
+          <div class="field"><label class="lbl" for="f-date">Date de collecte</label><input type="date" id="f-date"></div>
+          <div class="field"><label class="lbl" for="f-prov">Provenance <span class="req">*</span></label><select id="f-prov"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label class="lbl" for="f-ref">Référence <span class="hint" style="text-transform:none;letter-spacing:0">· automatique</span></label><input id="f-ref" class="ref" readonly tabindex="-1" title="Numéro attribué automatiquement (+1 à chaque vélo). Réglage dans l'onglet Listes."></div>
+          <div class="field"><label class="lbl" for="f-poids">Poids (kg) <span class="req">*</span></label><input id="f-poids" class="poids" inputmode="decimal" placeholder="14,50"></div>
+        </div>
+        <div class="field">
+          <span class="lbl">État <span class="req">*</span></span>
+          <div class="etats" role="group" aria-label="État">
+            <button type="button" class="etat" data-v="OK" aria-pressed="true">OK<kbd>Alt+1</kbd></button>
+            <button type="button" class="etat" data-v="HS" aria-pressed="false">HS<kbd>Alt+2</kbd></button>
+            <button type="button" class="etat" data-v="POUR PIECE" aria-pressed="false">POUR PIÈCE<kbd>Alt+3</kbd></button>
+          </div>
+        </div>
+        <div class="details" id="details">
+          <div class="note" id="hsnote" hidden>Vélo <b id="hsname">HS</b> : seuls référence, provenance et poids sont obligatoires.</div>
+          <div class="row">
+            <div class="field"><label class="lbl" for="f-marque">Marque <span class="req">*</span></label><input id="f-marque" list="dl-marque" placeholder="BTWIN, NAKAMURA… ou N/A"><datalist id="dl-marque"></datalist></div>
+            <div class="field"><label class="lbl" for="f-modele">Modèle</label><input id="f-modele" placeholder="Rockrider 340 (vide = N/A)"></div>
+          </div>
+          <div class="field"><span class="lbl">Type <span class="req">*</span></span><div class="chips" id="c-type"></div></div>
+          <div class="field"><span class="lbl">Roue (pouces) <span class="req">*</span></span><div class="chips" id="c-roue"></div></div>
+          <div class="field"><span class="lbl">Taille du cadre <span class="req">*</span></span><div class="chips" id="c-taille"></div></div>
+          <div class="row">
+            <div class="field"><label class="lbl" for="f-couleur">Couleur <span class="req">*</span></label><input id="f-couleur" list="dl-couleur" placeholder="NOIR, GRIS / BLEU…"><datalist id="dl-couleur"></datalist></div>
+            <div class="field"><label class="lbl" for="f-autres">Autres informations</label><input id="f-autres" placeholder="Manque batterie, pièces à récupérer…"></div>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary" id="btn-save">Enregistrer et suivant</button>
+          <button type="button" id="btn-dup">Reprendre le vélo précédent</button>
+          <button type="button" class="ghost" id="btn-cancel" hidden>Annuler la modification</button>
+        </div>
+        <p class="msg" id="msg" role="status" aria-live="polite"></p>
+        <p class="hint">Entrée = enregistrer · Alt+1 / Alt+2 / Alt+3 = OK / HS / Pour pièce · Les choix des menus se gèrent dans l'onglet Listes.</p>
+      </form>
+
+      <aside class="panel">
+        <h2>Collecte du <span id="r-date"></span></h2>
+        <div class="tiles" id="r-tiles"></div>
+        <div class="recent" id="r-list"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- HISTORIQUE -->
+  <section class="view panel" id="v-historique" role="tabpanel" hidden>
+    <div class="toolbar">
+      <div class="field inline">
+        <label class="lbl" for="flt">Période</label>
+        <select id="flt"><option value="all">Tout</option><option value="day">Date de collecte en cours</option><option value="month">Mois en cours</option><option value="quarter">Trimestre en cours</option><option value="year">Année en cours</option></select>
+        <label class="lbl" for="flt-prov">Provenance</label>
+        <select id="flt-prov"></select>
+        <label class="lbl" for="flt-etat">État</label>
+        <select id="flt-etat"><option value="">Tous</option><option>OK</option><option>HS</option><option value="POUR PIECE">POUR PIÈCE</option></select>
+      </div>
+      <input id="q" type="search" placeholder="Chercher réf., marque, couleur…" style="max-width:280px" aria-label="Rechercher">
+    </div>
+    <p class="hint" id="count"></p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Date</th><th>Réf.</th><th>État</th><th>Provenance</th><th class="num">Poids</th><th>Marque</th><th>Modèle</th><th>Type</th><th>Roue</th><th>Taille</th><th>Couleur</th><th>Autres infos</th><th></th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+    <p class="hint">Clique sur une ligne pour la modifier dans l'onglet Saisie.</p>
+  </section>
+
+  <!-- STATS -->
+  <section class="view" id="v-stats" role="tabpanel" hidden>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="field inline">
+          <label class="lbl" for="sper">Période</label>
+          <select id="sper"><option value="month">Mois en cours</option><option value="quarter">Trimestre en cours</option><option value="pickq">Trimestre au choix</option><option value="day">Date de collecte en cours</option><option value="year">Année en cours</option><option value="all">Tout</option><option value="custom">Période personnalisée</option></select>
+          <span class="field inline" id="qpick" hidden>
+            <label class="lbl" for="s-q">Trimestre</label><select id="s-q"><option value="1">T1 (janv.–mars)</option><option value="2">T2 (avr.–juin)</option><option value="3">T3 (juil.–sept.)</option><option value="4">T4 (oct.–déc.)</option></select>
+            <label class="lbl" for="s-qy">Année</label><select id="s-qy"></select>
+          </span>
+          <span class="field inline" id="custom" hidden>
+            <label class="lbl" for="s-from">Du</label><input type="date" id="s-from">
+            <label class="lbl" for="s-to">au</label><input type="date" id="s-to">
+          </span>
+        </div>
+      </div>
+      <div class="tiles" id="s-tiles"></div>
+    </div>
+    <div class="statgrid" id="s-blocks"></div>
+  </section>
+
+  <!-- SAUVEGARDE -->
+  <section class="view" id="v-sauvegarde" role="tabpanel" hidden>
+    <div class="panel">
+      <p class="hint">Les saisies, les listes et la numérotation sont enregistrées en ligne et partagées entre tous les postes. Chaque appareil garde aussi une copie pour continuer à saisir sans connexion. Une sauvegarde (.json) de temps en temps reste une bonne précaution.</p>
+      <h2>Exporter</h2>
+      <div class="actions">
+        <button type="button" class="primary" id="btn-json">Télécharger la sauvegarde</button>
+        <button type="button" id="btn-csv">Exporter en CSV (Excel)</button>
+        <button type="button" id="btn-copy">Copier le tableau</button>
+      </div>
+      <p class="hint">La sauvegarde (.json) contient les vélos et les listes : elle sert à restaurer ou à changer d'appareil. Le CSV s'ouvre dans Excel. « Copier le tableau » colle toutes les saisies dans Excel avec Ctrl+V.</p>
+      <textarea class="out" id="out" readonly aria-label="Tableau à copier" hidden></textarea>
+    </div>
+    <div class="panel">
+      <h2>Restaurer</h2>
+      <div class="field"><label class="lbl" for="f-import">Fichier de sauvegarde (.json)</label><input type="file" id="f-import" accept=".json,application/json"></div>
+      <p class="hint">Les vélos du fichier s'ajoutent à ceux déjà présents ; une même saisie n'est jamais importée deux fois. Les choix des listes sont fusionnés.</p>
+    </div>
+    <p class="msg" id="xmsg" role="status" aria-live="polite"></p>
+    <div class="panel">
+      <h2>Effacer</h2>
+      <div class="actions"><button type="button" class="danger" id="btn-purge">Effacer toutes les saisies</button></div>
+      <div id="purgebox"></div>
+    </div>
+  </section>
+
+  <!-- LISTES -->
+  <section class="view" id="v-listes" role="tabpanel" hidden>
+    <p class="hint">Ajoute ou retire ici les choix proposés dans le formulaire. Retirer un choix ne modifie pas les vélos déjà saisis.</p>
+    <div class="panel">
+      <div><h2>Numérotation des références</h2><p class="hint">Chaque vélo enregistré reçoit automatiquement le numéro suivant (+1). Un numéro déjà attribué n'est jamais réutilisé, même après suppression.</p></div>
+      <form class="row" id="num-form">
+        <div class="field"><label class="lbl" for="n-prefix">Préfixe</label><input id="n-prefix" maxlength="4"></div>
+        <div class="field"><label class="lbl" for="n-next">Prochain numéro</label><input id="n-next" inputmode="numeric"></div>
+        <div class="field" style="justify-content:flex-end"><button type="submit">Appliquer</button></div>
+      </form>
+      <p class="msg" id="n-msg"></p>
+    </div>
+    <div class="lists" id="lists"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+const KEY='collecteVelosAMS.v1';
+const DEFAULT_LISTS={
+  prov:['DON','ENVIE','POLICE MUNICIPALE AVRILLE','POLICE MUNICIPALE ROSERAIE','ANGERS METROPOLE CYCLISME'],
+  marque:['BTWIN','DECATHLON','ROCKRIDER','NAKAMURA','GITANE','PEUGEOT','TOPBIKE','MICMO','WOODSUN','ORBEA','MERCIER','MOTOBECANE','LAPIERRE','ARCADE','JUMPERTREK','QUANTUM','RIVERSIDE','SCOTT','GIANT','WINORA','N/A'],
+  type:['VTT','VTC','ENFANT','ROUTE','VINTAGE','VAE','BMX','TANDEM','AUTRE'],
+  roue:['12','14','16','20','24','26','27.5','28','29','650','700'],
+  taille:['ENFANT','XS','S','M','L','XL','N/A'],
+  couleur:['NOIR','BLANC','GRIS','BLEU','ROUGE','VERT','ROSE','JAUNE','ORANGE','VIOLET','BEIGE','MARRON']
+};
+const LIST_META=[['prov','Provenance','Menu déroulant de la provenance'],['type','Type','Boutons du type de vélo'],['roue','Roue (pouces)','Boutons de taille de roue'],['taille','Taille du cadre','Boutons de taille de cadre'],['marque','Marque','Suggestions pendant la saisie'],['couleur','Couleur','Suggestions pendant la saisie']];
+const RELAXED=['HS','POUR PIECE'];
+
+const $=id=>document.getElementById(id);
+let state={entries:[],settings:{},lists:null};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.entries))state=s;}catch(e){}
+if(!state.lists)state.lists=JSON.parse(JSON.stringify(DEFAULT_LISTS));
+Object.keys(DEFAULT_LISTS).forEach(k=>{if(!Array.isArray(state.lists[k]))state.lists[k]=DEFAULT_LISTS[k].slice();});
+state.settings=state.settings||{};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+
+/* ---------- en ligne : Firebase Realtime Database (projet collecte-velos-ams, nœud collecte_velos_ams) ----------
+   Le serveur fait foi. Une copie locale permet de continuer à saisir sans connexion ; les changements
+   en attente (state.pending) partent dès que la connexion revient. */
+const FB='https://collecte-velos-ams-default-rtdb.europe-west1.firebasedatabase.app/collecte_velos_ams';
+state.pending=state.pending||{};
+let syncing=false,syncAgain=false,lastOk=0,online=null;
+const JH={'Content-Type':'application/json'};
+async function fb(path,opt){const r=await fetch(FB+path+'.json',opt||{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.status===204?null:r.json();}
+const cfgObj=()=>({lists:state.lists,refPrefix:state.settings.refPrefix,refStart:state.settings.refStart||1,lastNum:state.settings.lastNum||0,updatedAt:Date.now()});
+function markPut(id){state.pending[id]='put';save();sync();}
+function markDel(id){state.pending[id]='del';save();sync();}
+function markCfg(force){state.cfgDirty=true;if(force)state.cfgForce=true;save();sync();}
+function clean(e){return{id:e.id,ts:e.ts||Date.now(),date:e.date||'',ref:U(e.ref),etat:e.etat||'OK',prov:U(e.prov),poids:num(e.poids)||0,marque:U(e.marque),modele:U(e.modele),type:e.type||'',roue:e.roue||'',taille:e.taille||'',couleur:U(e.couleur),autres:e.autres||''};}
+function setSync(s,t){const b=$('sync');if(!b)return;b.dataset.s=s;$('sync-t').textContent=t;}
+function syncLabel(){const n=Object.keys(state.pending).length,w=n?' · '+n+' vélo'+(n>1?'s':'')+' à envoyer':(state.cfgDirty?' · réglages à envoyer':'');
+  if(online)setSync(w?'wait':'ok',w?'En ligne'+w:'En ligne · à jour '+new Date(lastOk).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+  else if(online===false)setSync('off','Hors ligne'+w+' · copie locale');
+  else setSync('wait','Connexion…');}
+async function sync(){
+  if(syncing){syncAgain=true;return;}syncing=true;
+  try{
+    const [ents,cfg]=await Promise.all([fb('/entries'),fb('/config')]);
+    const server=ents||{};
+    // première connexion de cet appareil : envoyer les saisies faites avant la mise en ligne
+    if(!state.migrated){state.entries.forEach(e=>{if(!server[e.id]&&!state.pending[e.id])state.pending[e.id]='put';});state.migrated=true;}
+    for(const [id,op] of Object.entries(state.pending)){
+      if(op==='put'){const e=state.entries.find(x=>x.id===id);if(e){const c=clean(e);await fb('/entries/'+encodeURIComponent(id),{method:'PUT',headers:JH,body:JSON.stringify(c)});server[id]=c;}}
+      else{await fb('/entries/'+encodeURIComponent(id),{method:'DELETE'});delete server[id];}
+      delete state.pending[id];
+    }
+    state.entries=Object.values(server).filter(e=>e&&e.id).map(clean);
+    const before=JSON.stringify([state.lists,state.settings.refPrefix,state.settings.refStart]);
+    if(state.cfgDirty||!cfg){
+      if(!state.cfgForce&&cfg)state.settings.lastNum=Math.max(state.settings.lastNum||0,cfg.lastNum||0);
+      await fb('/config',{method:'PUT',headers:JH,body:JSON.stringify(cfgObj())});state.cfgDirty=false;state.cfgForce=false;
+    }else{
+      if(cfg.lists)Object.keys(DEFAULT_LISTS).forEach(k=>{if(Array.isArray(cfg.lists[k]))state.lists[k]=cfg.lists[k];});
+      if(cfg.refPrefix)state.settings.refPrefix=cfg.refPrefix;if(cfg.refStart)state.settings.refStart=cfg.refStart;
+      state.settings.lastNum=cfg.lastNum||0;
+    }
+    initNumbering();
+    if((state.settings.lastNum||0)>((cfg&&cfg.lastNum)||0)&&!state.cfgDirty)await fb('/config/lastNum',{method:'PUT',headers:JH,body:JSON.stringify(state.settings.lastNum)});
+    online=true;lastOk=Date.now();save();
+    if(before!==JSON.stringify([state.lists,state.settings.refPrefix,state.settings.refStart])){refreshMenus();if(!$('v-listes').hidden)renderLists();}
+    showNextRef();renderAll();
+  }catch(err){online=false;save();}
+  syncing=false;syncLabel();
+  if(syncAgain){syncAgain=false;sync();}
+}
+/* attribution d'un numéro unique, même si plusieurs postes saisissent en même temps */
+async function allocNum(){
+  const st=state.settings,used=new Set(state.entries.map(e=>e.ref));
+  const pick=cur=>{let n=Math.max((cur||0)+1,st.refStart||1,(st.lastNum||0)+1);while(used.has(st.refPrefix+n))n++;return n;};
+  try{ // écriture conditionnelle (ETag) : réessaie si un autre poste a pris le numéro entre-temps
+    let r=await fetch(FB+'/config/lastNum.json',{headers:{'X-Firebase-ETag':'true'},cache:'no-store'});
+    let etag=r.ok&&r.headers.get('ETag');let cur=r.ok?await r.json():null;
+    if(etag){for(let i=0;i<8;i++){const n=pick(cur);
+      const w=await fetch(FB+'/config/lastNum.json',{method:'PUT',headers:{'Content-Type':'application/json','if-match':etag},body:JSON.stringify(n)});
+      if(w.ok){online=true;return n;}
+      if(w.status===412){etag=w.headers.get('ETag');cur=await w.json();if(!etag)break;continue;}
+      break;}}
+  }catch(e){}
+  try{const cur=await fb('/config/lastNum');const n=pick(cur);await fb('/config/lastNum',{method:'PUT',headers:JH,body:JSON.stringify(n)});online=true;return n;}
+  catch(e){online=false;return null;}
+}
+setInterval(()=>{if(!document.hidden)sync();},15000);
+window.addEventListener('focus',()=>sync());window.addEventListener('online',()=>sync());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync();});
+
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const frDate=iso=>{if(!iso)return'';const[y,m,d]=iso.split('-');return d+'/'+m+'/'+y;};
+const stamp=t=>{const d=new Date(t);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());};
+const num=v=>{const n=parseFloat(String(v).replace(',','.').replace(/[^\d.]/g,''));return isFinite(n)?n:NaN;};
+const kg=n=>n.toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const U=s=>String(s||'').trim().toUpperCase();
+const pillCls=e=>e==='POUR PIECE'?'PP':e;
+function showMsg(t,cls){const m=$('msg');m.textContent=t;m.className='msg '+(cls||'');}
+
+/* ---------- onglets ---------- */
+const VIEWS=['saisie','historique','stats','sauvegarde','listes'];
+function go(v){document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.view===v?'true':'false'));
+  VIEWS.forEach(x=>$('v-'+x).hidden=x!==v);
+  if(v==='stats')renderStats();if(v==='historique')renderHist();if(v==='listes')renderLists();
+  try{sessionStorage.setItem(KEY+'.tab',v);}catch(e){}}
+document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+
+/* ---------- menus du formulaire ---------- */
+let extra={type:'',roue:'',taille:''};
+function fillProv(keep){const sel=$('f-prov');const cur=keep!==undefined?keep:sel.value;const opts=state.lists.prov.slice();if(cur&&!opts.includes(cur))opts.push(cur);
+  sel.innerHTML='<option value="">— Choisir —</option>'+opts.map(v=>'<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>').join('');
+  const fp=$('flt-prov');const fc=fp.value;const all=[...new Set([...state.lists.prov,...state.entries.map(e=>e.prov)])].filter(Boolean);
+  fp.innerHTML='<option value="">Toutes</option>'+all.map(v=>'<option'+(v===fc?' selected':'')+'>'+esc(v)+'</option>').join('');}
+function chipGroup(name){const box=$('c-'+name);const cur=radio(name);const arr=state.lists[name].slice();const x=extra[name]||cur;if(x&&!arr.includes(x))arr.push(x);
+  box.innerHTML=arr.map((v,i)=>'<label class="chip"><input type="radio" name="'+name+'" id="'+name+'-'+i+'" value="'+esc(v)+'"'+(v===cur?' checked':'')+'><span>'+esc(v)+'</span></label>').join('');}
+function refreshMenus(){fillProv();['type','roue','taille'].forEach(chipGroup);
+  $('dl-marque').innerHTML=state.lists.marque.map(v=>'<option value="'+esc(v)+'">').join('');
+  $('dl-couleur').innerHTML=state.lists.couleur.map(v=>'<option value="'+esc(v)+'">').join('');}
+const radio=n=>{const r=document.querySelector('input[name="'+n+'"]:checked');return r?r.value:'';};
+function setRadio(n,v){extra[n]=v&&!state.lists[n].includes(v)?v:'';chipGroup(n);document.querySelectorAll('input[name="'+n+'"]').forEach(r=>r.checked=(r.value===v));}
+
+/* ---------- état ---------- */
+let etat='OK',editId=null;
+function setEtat(v){etat=v;document.querySelectorAll('.etat').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v?'true':'false'));
+  const relaxed=RELAXED.includes(v);$('details').classList.toggle('optional',relaxed);$('hsnote').hidden=!relaxed;$('hsname').textContent=v==='POUR PIECE'?'POUR PIÈCE':v;clearInvalid();}
+document.querySelectorAll('.etat').forEach(b=>b.addEventListener('click',()=>setEtat(b.dataset.v)));
+document.addEventListener('keydown',e=>{if(e.altKey&&['1','2','3'].includes(e.key)&&!$('v-saisie').hidden){e.preventDefault();setEtat(['OK','HS','POUR PIECE'][+e.key-1]);}});
+
+/* numérotation automatique : préfixe + (plus grand numéro déjà attribué + 1) ; jamais réutilisé */
+function refNum(r,pre){const m=U(r).replace(/\s+/g,'').match(/^([A-Z]*)(\d+)$/);if(!m)return NaN;if(pre!==undefined&&m[1]!==pre&&!(pre==='V'&&m[1]==='VC'))return NaN;return +m[2];}
+function initNumbering(){const st=state.settings;
+  if(!st.refPrefix)st.refPrefix='V';
+  if(!st.refStart){const n=refNum(st.nextRef);st.refStart=isFinite(n)?n:1249;}
+  delete st.nextRef;
+  const mx=Math.max(0,...state.entries.map(e=>refNum(e.ref,st.refPrefix)).filter(isFinite));
+  st.lastNum=Math.max(st.lastNum||0,mx);}
+function nextNum(){const st=state.settings;return Math.max((st.lastNum||0)+1,st.refStart||1);}
+function currentRef(){return state.settings.refPrefix+nextNum();}
+function showNextRef(){if(!editId)$('f-ref').value=currentRef();}
+
+/* ---------- saisie ---------- */
+function clearInvalid(){document.querySelectorAll('.invalid').forEach(x=>x.classList.remove('invalid'));}
+function readForm(){return{date:$('f-date').value,prov:$('f-prov').value,ref:U($('f-ref').value).replace(/\s+/g,''),etat,poidsRaw:$('f-poids').value.trim(),
+  marque:U($('f-marque').value),modele:U($('f-modele').value),type:radio('type'),roue:radio('roue'),taille:radio('taille'),couleur:U($('f-couleur').value),autres:$('f-autres').value.trim()};}
+function validate(f){clearInvalid();const bad=[];const mark=(el,l)=>{el.classList.add('invalid');bad.push(l);};
+  if(!f.date)mark($('f-date'),'date');if(!f.prov)mark($('f-prov'),'provenance');
+  const p=num(f.poidsRaw);if(!(p>0&&p<80))mark($('f-poids'),'poids (entre 0 et 80 kg)');
+  if(!RELAXED.includes(f.etat)){if(!f.marque)mark($('f-marque'),'marque');if(!f.type)mark($('c-type'),'type');if(!f.roue)mark($('c-roue'),'roue');if(!f.taille)mark($('c-taille'),'taille');if(!f.couleur)mark($('f-couleur'),'couleur');}
+  return bad;}
+function resetBike(){['f-poids','f-marque','f-modele','f-couleur','f-autres'].forEach(id=>$(id).value='');['type','roue','taille'].forEach(n=>setRadio(n,''));setEtat('OK');}
+
+let saving=false;
+$('form').addEventListener('submit',async e=>{
+  e.preventDefault();if(saving)return;const f=readForm();const bad=validate(f);
+  if(bad.length){showMsg('À compléter : '+bad.join(', ')+'.','err');const first=document.querySelector('.invalid');if(first)(first.querySelector('input')||first).focus();return;}
+  if(!editId){saving=true;$('btn-save').disabled=true;
+    let n=await allocNum();
+    if(n===null){n=nextNum();while(state.entries.some(x=>x.ref===state.settings.refPrefix+n))n++;state.cfgDirty=true;}
+    f.ref=state.settings.refPrefix+n;state.settings.lastNum=Math.max(state.settings.lastNum||0,n);
+    saving=false;$('btn-save').disabled=false;}
+  const rec={date:f.date,prov:f.prov,ref:f.ref,etat:f.etat,poids:num(f.poidsRaw),marque:f.marque,modele:f.modele,type:f.type,roue:f.roue,taille:f.taille,couleur:f.couleur,autres:f.autres};
+  if(editId){const id=editId;const i=state.entries.findIndex(x=>x.id===id);if(i>=0){rec.ref=state.entries[i].ref;Object.assign(state.entries[i],rec);}showMsg(rec.ref+' modifié.','ok');endEdit();markPut(id);}
+  else{const nid=Date.now().toString(36)+Math.random().toString(36).slice(2,6);state.entries.push(Object.assign({id:nid,ts:Date.now()},rec));state.pending[nid]='put';
+    showMsg(rec.ref+' enregistré ('+rec.etat+', '+kg(rec.poids)+' kg)'+(online===false?' sur cet appareil : il sera envoyé en ligne au retour de la connexion.':'.'),'ok');
+    state.settings.lastNum=Math.max(state.settings.lastNum||0,refNum(rec.ref,state.settings.refPrefix)||0);showNextRef();state.settings.date=f.date;state.settings.prov=f.prov;save();resetBike();sync();}
+  renderAll();$('f-poids').focus();
+});
+['f-date','f-prov'].forEach(id=>$(id).addEventListener('change',()=>{if(editId)return;state.settings.date=$('f-date').value;state.settings.prov=$('f-prov').value;save();renderRecent();}));
+
+$('btn-dup').addEventListener('click',()=>{const last=state.entries.slice().sort((a,b)=>a.ts-b.ts).pop();if(!last){showMsg('Aucun vélo saisi pour l\'instant.','err');return;}
+  setEtat(last.etat);$('f-marque').value=last.marque;$('f-modele').value=last.modele;setRadio('type',last.type);setRadio('roue',last.roue);setRadio('taille',last.taille);$('f-couleur').value=last.couleur;$('f-poids').value=String(last.poids).replace('.',',');
+  showMsg('Infos de '+last.ref+' reprises : vérifie le poids puis Entrée.','ok');$('f-poids').select();});
+
+function startEdit(id){const x=state.entries.find(e=>e.id===id);if(!x)return;editId=id;go('saisie');
+  $('f-date').value=x.date;fillProv(x.prov);$('f-ref').value=x.ref;$('f-poids').value=String(x.poids).replace('.',',');
+  $('f-marque').value=x.marque;$('f-modele').value=x.modele;setRadio('type',x.type);setRadio('roue',x.roue);setRadio('taille',x.taille);$('f-couleur').value=x.couleur;$('f-autres').value=x.autres;setEtat(x.etat);
+  $('btn-save').textContent='Enregistrer la modification';$('btn-cancel').hidden=false;showMsg('Modification de '+x.ref+'.','');$('f-poids').focus();}
+function endEdit(){editId=null;$('btn-save').textContent='Enregistrer et suivant';$('btn-cancel').hidden=true;editId=null;showNextRef();$('f-date').value=state.settings.date||today();fillProv(state.settings.prov||'');resetBike();}
+$('btn-cancel').addEventListener('click',()=>{endEdit();showMsg('','');});
+
+/* ---------- récap du jour ---------- */
+function tilesHTML(list){const tot=list.reduce((s,e)=>s+e.poids,0);const c=v=>list.filter(e=>e.etat===v).length;
+  const w=v=>kg(list.filter(e=>e.etat===v).reduce((s,e)=>s+e.poids,0));const pc=v=>list.length?Math.round(c(v)/list.length*100)+' %':'–';
+  return '<div class="tile"><span class="lbl">Vélos</span><b>'+list.length+'</b></div><div class="tile"><span class="lbl">Poids total</span><b>'+kg(tot)+'</b><span class="hint">kg'+(list.length?' · moy. '+kg(tot/list.length):'')+'</span></div>'
+   +'<div class="tile"><span class="lbl">OK</span><b style="color:var(--ok)">'+c('OK')+'</b><span class="hint">'+pc('OK')+' · '+w('OK')+' kg</span></div>'
+   +'<div class="tile"><span class="lbl">HS</span><b style="color:var(--hs)">'+c('HS')+'</b><span class="hint">'+pc('HS')+' · '+w('HS')+' kg</span></div>'
+   +'<div class="tile"><span class="lbl">Pour pièce</span><b style="color:var(--pp)">'+c('POUR PIECE')+'</b><span class="hint">'+pc('POUR PIECE')+' · '+w('POUR PIECE')+' kg</span></div>';}
+function renderRecent(){const d=$('f-date').value||today();$('r-date').textContent=frDate(d);
+  const list=state.entries.filter(e=>e.date===d).sort((a,b)=>b.ts-a.ts);
+  $('r-tiles').innerHTML=tilesHTML(list);
+  $('r-list').innerHTML=list.length?list.slice(0,12).map(e=>'<div><span class="mono">'+esc(e.ref)+'</span><span class="pill '+pillCls(e.etat)+'">'+esc(e.etat)+'</span><span class="txt">'+esc([e.marque,e.type,e.prov].filter(Boolean).join(' · '))+'</span><span>'+kg(e.poids)+' kg</span></div>').join('')+(list.length>12?'<p class="hint" style="padding-top:8px">+ '+(list.length-12)+' autres dans l\'Historique</p>':'')
+    :'<p class="empty">Aucun vélo saisi à cette date. Tape le poids du premier vélo puis Entrée.</p>';}
+
+/* ---------- historique ---------- */
+let pendingDel=null;
+const qKey=iso=>iso.slice(0,4)+'-T'+(Math.floor((+iso.slice(5,7)-1)/3)+1);
+function inPeriod(mode,list){const d=$('f-date').value||today();
+  if(mode==='day')return list.filter(e=>e.date===d);
+  if(mode==='month')return list.filter(e=>e.date.slice(0,7)===d.slice(0,7));
+  if(mode==='quarter')return list.filter(e=>qKey(e.date)===qKey(d));
+  if(mode==='pickq'){const k=$('s-qy').value+'-T'+$('s-q').value;return list.filter(e=>qKey(e.date)===k);}
+  if(mode==='year')return list.filter(e=>e.date.slice(0,4)===d.slice(0,4));
+  if(mode==='custom'){const a=$('s-from').value,b=$('s-to').value;return list.filter(e=>(!a||e.date>=a)&&(!b||e.date<=b));}
+  return list.slice();}
+function renderHist(){
+  const q=U($('q').value),fp=$('flt-prov').value,fe=$('flt-etat').value;
+  let rows=inPeriod($('flt').value,state.entries);
+  if(fp)rows=rows.filter(e=>e.prov===fp);if(fe)rows=rows.filter(e=>e.etat===fe);
+  if(q)rows=rows.filter(e=>[e.ref,e.marque,e.modele,e.couleur,e.prov,e.type,e.autres].some(v=>U(v).includes(q)));
+  rows.sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);
+  $('count').textContent=rows.length+' vélo'+(rows.length>1?'s':'')+' · '+kg(rows.reduce((s,e)=>s+e.poids,0))+' kg';
+  $('tbody').innerHTML=rows.length?rows.map(e=>{
+    const del=pendingDel===e.id?'<button type="button" class="danger small" data-delok="'+e.id+'">Supprimer</button> <button type="button" class="ghost small" data-delno="1">Non</button>':'<button type="button" class="ghost small" data-del="'+e.id+'" aria-label="Supprimer '+esc(e.ref)+'">✕</button>';
+    return '<tr class="clickable" data-id="'+e.id+'"><td>'+frDate(e.date)+'</td><td class="mono">'+esc(e.ref)+'</td><td><span class="pill '+pillCls(e.etat)+'">'+esc(e.etat)+'</span></td><td>'+esc(e.prov)+'</td><td class="num">'+kg(e.poids)+'</td><td>'+esc(e.marque)+'</td><td>'+esc(e.modele)+'</td><td>'+esc(e.type)+'</td><td>'+esc(e.roue)+'</td><td>'+esc(e.taille)+'</td><td>'+esc(e.couleur)+'</td><td>'+esc(e.autres)+'</td><td>'+del+'</td></tr>';}).join('')
+    :'<tr><td colspan="13" class="empty">'+(state.entries.length?'Aucun vélo pour ces filtres.':'Aucun vélo saisi pour l\'instant. Commence dans l\'onglet Saisie.')+'</td></tr>';}
+['flt','flt-prov','flt-etat'].forEach(id=>$(id).addEventListener('change',renderHist));$('q').addEventListener('input',renderHist);
+$('tbody').addEventListener('click',e=>{const t=e.target.closest('button')||e.target;
+  if(t.dataset.del){pendingDel=t.dataset.del;renderHist();return;}
+  if(t.dataset.delno){pendingDel=null;renderHist();return;}
+  if(t.dataset.delok){const id=t.dataset.delok;state.entries=state.entries.filter(z=>z.id!==id);pendingDel=null;if(editId===id)endEdit();renderAll();markDel(id);return;}
+  const tr=e.target.closest('tr[data-id]');if(tr)startEdit(tr.dataset.id);});
+
+/* ---------- stats ---------- */
+function group(list,key){const m=new Map();list.forEach(e=>{const k=e[key]||'(non renseigné)';const g=m.get(k)||{n:0,w:0};g.n++;g.w+=e.poids;m.set(k,g);});return [...m.entries()].sort((a,b)=>b[1].n-a[1].n);}
+function bars(title,list,key,clsFn,sortKeys,limit){let g=group(list,key);if(sortKeys)g.sort((a,b)=>a[0].localeCompare(b[0]));if(limit)g=g.slice(0,limit);const max=Math.max(1,...g.map(x=>x[1].n));
+  return '<div class="panel"><h2>'+title+'</h2><div class="bars">'+g.map(([k,v])=>'<div class="bar"><span class="name" title="'+esc(k)+'">'+esc(k)+'</span><span class="track"><span class="fill '+(clsFn?clsFn(k):'')+'" style="width:'+(v.n/max*100)+'%"></span></span><span class="n">'+v.n+'</span><span class="w">'+kg(v.w)+' kg</span></div>').join('')+'</div></div>';}
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function fillQYears(){const sel=$('s-qy');const cur=sel.value;const y=(($('f-date').value||today()).slice(0,4));
+  const ys=[...new Set([y,...state.entries.map(e=>e.date.slice(0,4))])].sort().reverse();
+  sel.innerHTML=ys.map(v=>'<option'+(v===(cur||y)?' selected':'')+'>'+v+'</option>').join('');
+  if(!$('s-q').dataset.init){$('s-q').value=String(Math.floor((+(($('f-date').value||today()).slice(5,7))-1)/3)+1);$('s-q').dataset.init='1';}}
+function quarterTable(list){const keys=[...new Set(list.map(e=>qKey(e.date)))].sort();
+  const rows=keys.map(k=>{const l=list.filter(e=>qKey(e.date)===k);const c=v=>l.filter(e=>e.etat===v).length;const w=l.reduce((s,e)=>s+e.poids,0);
+    return '<tr><td><b>'+k.slice(5)+' '+k.slice(0,4)+'</b></td><td class="num">'+l.length+'</td><td class="num">'+kg(w)+'</td><td class="num">'+c('OK')+'</td><td class="num">'+c('HS')+'</td><td class="num">'+c('POUR PIECE')+'</td><td class="num">'+Math.round(c('OK')/l.length*100)+' %</td></tr>';}).join('');
+  return '<div class="panel" style="grid-column:1/-1"><h2>Par trimestre</h2><div class="tablewrap" style="max-height:none"><table><thead><tr><th>Trimestre</th><th class="num">Vélos</th><th class="num">Poids (kg)</th><th class="num">OK</th><th class="num">HS</th><th class="num">Pour pièce</th><th class="num">Taux OK</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';}
+function renderStats(){const per=$('sper').value;$('custom').hidden=per!=='custom';$('qpick').hidden=per!=='pickq';fillQYears();
+  const list=inPeriod(per,state.entries);$('s-tiles').innerHTML=tilesHTML(list);
+  if(!list.length){$('s-blocks').innerHTML='<div class="panel"><p class="empty">Pas encore de vélo sur cette période. Les répartitions par mois, provenance, type, roue, taille et marque apparaîtront ici.</p></div>';return;}
+  const ok=list.filter(e=>e.etat==='OK');
+  const months=new Set(list.map(e=>e.date.slice(0,7)));
+  const ml=list.map(e=>Object.assign({},e,{mois:e.date.slice(0,7)+' · '+MOIS[+e.date.slice(5,7)-1]}));
+  const quarters=new Set(list.map(e=>qKey(e.date)));
+  $('s-blocks').innerHTML=(quarters.size>1?quarterTable(list):'')+(months.size>1?bars('Par mois',ml,'mois',null,true):'')+bars('Par état',list,'etat',pillCls)+bars('Par provenance',list,'prov')
+   +(ok.length?bars('Par type (vélos OK)',ok,'type')+bars('Par roue (vélos OK)',ok,'roue')+bars('Par taille du cadre (vélos OK)',ok,'taille')+bars('Marques les plus fréquentes (vélos OK)',ok,'marque',null,false,12):'');}
+['sper','s-from','s-to','s-q','s-qy'].forEach(id=>$(id).addEventListener('change',renderStats));
+
+/* ---------- listes ---------- */
+function renderNum(){$('n-prefix').value=state.settings.refPrefix;$('n-next').value=nextNum();}
+$('num-form').addEventListener('submit',e=>{e.preventDefault();const m=$('n-msg');
+  const pre=U($('n-prefix').value).replace(/[^A-Z]/g,'');const n=parseInt($('n-next').value,10);
+  if(!pre||!(n>0)){m.textContent='Indique un préfixe en lettres et un numéro supérieur à 0.';m.className='msg err';return;}
+  const used=Math.max(0,...state.entries.map(x=>refNum(x.ref,pre)).filter(isFinite));
+  if(pre===state.settings.refPrefix&&n<=used){m.textContent='Le numéro '+pre+n+' est déjà utilisé. Le prochain numéro libre est '+pre+(used+1)+'.';m.className='msg err';return;}
+  state.settings.refPrefix=pre;state.settings.refStart=n;state.settings.lastNum=Math.max(used,n-1);markCfg(true);showNextRef();renderNum();m.textContent='Prochain vélo : '+currentRef()+'.';m.className='msg ok';});
+function renderLists(){renderNum();$('lists').innerHTML=LIST_META.map(([k,t,h])=>'<div class="panel" data-list="'+k+'"><div><h2>'+t+'</h2><p class="hint">'+h+' · '+state.lists[k].length+' choix</p></div>'
+  +'<div class="chips">'+state.lists[k].map((v,i)=>'<span class="tag">'+esc(v)+'<button type="button" data-rm="'+i+'" aria-label="Retirer '+esc(v)+'">✕</button></span>').join('')+'</div>'
+  +'<form class="addrow" data-add="'+k+'"><input id="add-'+k+'" placeholder="Nouveau choix" aria-label="Nouveau choix pour '+t+'"><button type="submit">Ajouter</button></form>'
+  +'<div class="actions"><button type="button" class="ghost small" data-reset="'+k+'">Remettre la liste d\'origine</button></div><p class="msg" id="lm-'+k+'"></p></div>').join('');}
+$('lists').addEventListener('submit',e=>{e.preventDefault();const k=e.target.dataset.add;const inp=$('add-'+k);let v=U(inp.value).replace(/,/g,k==='roue'?'.':',');
+  if(!v)return;if(state.lists[k].includes(v)){$('lm-'+k).textContent=v+' est déjà dans la liste.';$('lm-'+k).className='msg err';return;}
+  state.lists[k].push(v);markCfg();refreshMenus();renderLists();$('lm-'+k).textContent=v+' ajouté.';$('lm-'+k).className='msg ok';$('add-'+k).focus();});
+$('lists').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const card=b.closest('[data-list]');const k=card&&card.dataset.list;
+  if(b.dataset.rm!==undefined){const v=state.lists[k][+b.dataset.rm];state.lists[k].splice(+b.dataset.rm,1);markCfg();refreshMenus();renderLists();$('lm-'+k).textContent=v+' retiré.';$('lm-'+k).className='msg ok';}
+  if(b.dataset.reset){state.lists[k]=DEFAULT_LISTS[k].slice();markCfg();refreshMenus();renderLists();$('lm-'+k).textContent='Liste d\'origine remise.';$('lm-'+k).className='msg ok';}});
+
+/* ---------- sauvegarde ---------- */
+const HEAD=['Date','Référence','Etat','Provenance','Poids (kg)','Marque','Modèle','Type','Roue','Taille du cadre','Autres informations','Couleur','Saisi le'];
+const COLS=e=>[frDate(e.date),e.ref,e.etat,e.prov,String(e.poids).replace('.',','),e.marque,RELAXED.includes(e.etat)?e.modele:(e.modele||'N/A'),e.type,e.roue,e.taille,e.autres,e.couleur,stamp(e.ts)];
+const sorted=()=>state.entries.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts);
+function xmsg(t,c){const m=$('xmsg');m.textContent=t;m.className='msg '+(c||'');}
+function download(name,content,type){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();
+  xmsg(name+' généré. Si rien ne se télécharge, ouvre l\'outil depuis son fichier ou son adresse GitHub Pages, ou utilise « Copier le tableau ».','ok');}
+  catch(e){xmsg('Téléchargement impossible dans cette fenêtre. Utilise « Copier le tableau ».','err');}}
+$('btn-json').addEventListener('click',()=>download('collecte-velos-ams-sauvegarde-'+today()+'.json',JSON.stringify({app:'collecte-velos-ams',version:2,exportedAt:new Date().toISOString(),settings:state.settings,lists:state.lists,entries:state.entries},null,1),'application/json'));
+$('btn-csv').addEventListener('click',()=>{if(!state.entries.length){xmsg('Rien à exporter pour l\'instant.','err');return;}
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';download('collecte-velos-ams-'+today()+'.csv','﻿'+[HEAD,...sorted().map(COLS)].map(r=>r.map(q).join(';')).join('\r\n'),'text/csv');});
+$('btn-copy').addEventListener('click',()=>{if(!state.entries.length){xmsg('Rien à copier pour l\'instant.','err');return;}
+  const clean=v=>String(v??'').replace(/[\t\r\n]+/g,' ');const txt=[HEAD,...sorted().map(COLS)].map(r=>r.map(clean).join('\t')).join('\n');const out=$('out');out.value=txt;
+  const fallback=()=>{out.hidden=false;out.focus();out.select();xmsg('Copie automatique refusée : le tableau est sélectionné, fais Ctrl+C.','err');};
+  try{navigator.clipboard.writeText(txt).then(()=>{out.hidden=true;xmsg(state.entries.length+' lignes copiées. Colle-les dans Excel avec Ctrl+V.','ok');},fallback);}catch(e){fallback();}});
+$('f-import').addEventListener('change',ev=>{const file=ev.target.files[0];if(!file)return;const r=new FileReader();
+  r.onload=()=>{try{const data=JSON.parse(r.result);const list=Array.isArray(data)?data:data.entries;if(!Array.isArray(list))throw 0;
+      const ids=new Set(state.entries.map(e=>e.id));let n=0;
+      list.forEach(e=>{if(e&&e.id&&e.ref&&e.date&&!ids.has(e.id)){state.entries.push(clean(e));state.pending[e.id]='put';ids.add(e.id);n++;}});
+      if(data.lists)Object.keys(DEFAULT_LISTS).forEach(k=>{(data.lists[k]||[]).forEach(v=>{v=U(v);if(v&&!state.lists[k].includes(v))state.lists[k].push(v);});});
+      initNumbering();state.cfgDirty=true;showNextRef();
+      save();refreshMenus();renderAll();sync();xmsg(n+' vélo'+(n>1?'s':'')+' importé'+(n>1?'s':'')+(list.length-n?' ('+(list.length-n)+' déjà présents ignorés)':'')+'.','ok');}
+    catch(e){xmsg('Ce fichier n\'est pas une sauvegarde de Collecte Vélos. Choisis le fichier .json créé par « Télécharger la sauvegarde ».','err');}
+    ev.target.value='';};r.readAsText(file);});
+$('btn-purge').addEventListener('click',()=>{const n=state.entries.length;
+  $('purgebox').innerHTML=n?'<div class="confirm"><span>Effacer définitivement les '+n+' saisies, en ligne et pour tous les postes ? Télécharge une sauvegarde avant.</span><button type="button" class="danger" id="purge-ok">Tout effacer</button><button type="button" class="ghost" id="purge-no">Annuler</button></div>':'<p class="hint">Aucune saisie à effacer.</p>';
+  const ok=$('purge-ok');if(ok){ok.onclick=()=>{state.entries.forEach(e=>state.pending[e.id]='del');state.entries=[];save();sync();$('purgebox').innerHTML='';if(editId)endEdit();renderAll();xmsg('Toutes les saisies ont été effacées.','ok');};$('purge-no').onclick=()=>{$('purgebox').innerHTML='';};}});
+
+/* ---------- démarrage ---------- */
+function renderAll(){$('b-total').textContent=state.entries.length;fillProv();renderRecent();if(!$('v-historique').hidden)renderHist();if(!$('v-stats').hidden)renderStats();}
+$('f-date').value=state.settings.date||today();
+initNumbering();save();showNextRef();
+refreshMenus();fillProv(state.settings.prov||'DON');setEtat('OK');renderAll();
+let tab='saisie';try{tab=sessionStorage.getItem(KEY+'.tab')||'saisie';}catch(e){}go(VIEWS.includes(tab)?tab:'saisie');
+setTimeout(()=>{if(!$('v-saisie').hidden)$('f-poids').focus();},50);
+$('sync').addEventListener('click',()=>sync());syncLabel();sync();
+})();
+</script>
