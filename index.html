@@ -132,6 +132,9 @@ textarea.out{font-family:var(--f-mono);font-size:.78rem;height:90px}
 .modetats .etat{padding:9px 4px;font-size:.95rem}
 .modetats .etat:disabled{cursor:default;opacity:1}
 .exportbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:12px}
+.remind{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;background:var(--pp-soft);border:1px solid var(--pp);border-radius:10px;padding:10px 14px;font-weight:500}
+.remind b{color:var(--pp)}
+button.primary.small{font-size:.92rem;padding:6px 12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -141,6 +144,11 @@ textarea.out{font-family:var(--f-mono);font-size:.78rem;height:90px}
     <div style="flex:1;min-width:0"><h1>Collecte Vélos</h1><p>Réception des vélos à reconditionner · AMS Angers Mob Services</p></div>
     <button type="button" class="sync" id="sync" data-s="wait" title="Cliquer pour synchroniser maintenant"><span class="sdot"></span><span id="sync-t">Connexion…</span></button>
   </header>
+
+  <div class="remind" id="remind" role="alert" hidden>
+    <span id="remind-t"></span>
+    <div class="actions"><button type="button" class="primary small" id="remind-save">Télécharger la sauvegarde</button><button type="button" class="ghost small" id="remind-later">Me le rappeler demain</button></div>
+  </div>
 
   <nav class="tabs" role="tablist" aria-label="Sections">
     <button type="button" role="tab" data-view="saisie" aria-selected="true">Saisie</button>
@@ -269,6 +277,7 @@ textarea.out{font-family:var(--f-mono);font-size:.78rem;height:90px}
   <!-- SAUVEGARDE -->
   <section class="view" id="v-sauvegarde" role="tabpanel" hidden>
     <div class="panel">
+      <p class="hint"><b id="last-backup"></b></p>
       <p class="hint">Les saisies, les listes et la numérotation sont enregistrées en ligne et partagées entre tous les postes. Chaque appareil garde aussi une copie pour continuer à saisir sans connexion. Une sauvegarde (.json) de temps en temps reste une bonne précaution.</p>
       <h2>Exporter</h2>
       <div class="actions">
@@ -338,7 +347,7 @@ state.pending=state.pending||{};
 let syncing=false,syncAgain=false,lastOk=0,online=null;
 const JH={'Content-Type':'application/json'};
 async function fb(path,opt){const r=await fetch(FB+path+'.json',opt||{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.status===204?null:r.json();}
-const cfgObj=()=>({lists:state.lists,refPrefix:state.settings.refPrefix,refStart:state.settings.refStart||1,lastNum:state.settings.lastNum||0,updatedAt:Date.now()});
+const cfgObj=()=>({lists:state.lists,refPrefix:state.settings.refPrefix,refStart:state.settings.refStart||1,lastNum:state.settings.lastNum||0,lastBackup:state.settings.lastBackup||0,updatedAt:Date.now()});
 function markPut(id){state.pending[id]='put';save();sync();}
 function markDel(id){state.pending[id]='del';save();sync();}
 function markCfg(force){state.cfgDirty=true;if(force)state.cfgForce=true;save();sync();}
@@ -367,6 +376,7 @@ async function sync(){
       await fb('/config',{method:'PUT',headers:JH,body:JSON.stringify(cfgObj())});state.cfgDirty=false;state.cfgForce=false;
     }else{
       if(cfg.lists)Object.keys(DEFAULT_LISTS).forEach(k=>{if(Array.isArray(cfg.lists[k]))state.lists[k]=cfg.lists[k];});
+      state.settings.lastBackup=Math.max(state.settings.lastBackup||0,cfg.lastBackup||0);
       if(cfg.refPrefix)state.settings.refPrefix=cfg.refPrefix;if(cfg.refStart)state.settings.refStart=cfg.refStart;
       state.settings.lastNum=cfg.lastNum||0;
     }
@@ -650,7 +660,8 @@ function xmsg(t,c){const m=$('xmsg');m.textContent=t;m.className='msg '+(c||'');
 function download(name,content,type){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();
   xmsg(name+' généré. Si rien ne se télécharge, ouvre l\'outil depuis son fichier ou son adresse GitHub Pages, ou utilise « Copier le tableau ».','ok');}
   catch(e){xmsg('Téléchargement impossible dans cette fenêtre. Utilise « Copier le tableau ».','err');}}
-$('btn-json').addEventListener('click',()=>download('collecte-velos-ams-sauvegarde-'+today()+'.json',JSON.stringify({app:'collecte-velos-ams',version:2,exportedAt:new Date().toISOString(),settings:state.settings,lists:state.lists,entries:state.entries},null,1),'application/json'));
+function doBackup(){download('collecte-velos-ams-sauvegarde-'+today()+'.json',JSON.stringify({app:'collecte-velos-ams',version:2,exportedAt:new Date().toISOString(),settings:state.settings,lists:state.lists,entries:state.entries},null,1),'application/json');markBackup();}
+$('btn-json').addEventListener('click',doBackup);
 $('btn-csv').addEventListener('click',()=>{if(!state.entries.length){xmsg('Rien à exporter pour l\'instant.','err');return;}
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';download('collecte-velos-ams-'+today()+'.csv','﻿'+[HEAD,...sorted().map(COLS)].map(r=>r.map(q).join(';')).join('\r\n'),'text/csv');});
 $('btn-copy').addEventListener('click',()=>{if(!state.entries.length){xmsg('Rien à copier pour l\'instant.','err');return;}
@@ -671,7 +682,23 @@ $('btn-purge').addEventListener('click',()=>{const n=state.entries.length;
   const ok=$('purge-ok');if(ok){ok.onclick=()=>{state.entries.forEach(e=>state.pending[e.id]='del');state.entries=[];save();sync();$('purgebox').innerHTML='';if(editId)endEdit();renderAll();xmsg('Toutes les saisies ont été effacées.','ok');};$('purge-no').onclick=()=>{$('purgebox').innerHTML='';};}});
 
 /* ---------- démarrage ---------- */
-function renderAll(){if(typeof renderMod==='function'&&modId)renderMod();$('b-total').textContent=state.entries.length;fillProv();renderRecent();if(!$('v-historique').hidden)renderHist();if(!$('v-stats').hidden)renderStats();}
+/* ---------- rappel de sauvegarde (date partagée entre les postes via la config en ligne) ---------- */
+const BACKUP_DAYS=30;
+function markBackup(){state.settings.lastBackup=Date.now();save();
+  fetch(FB+'/config/lastBackup.json',{method:'PUT',headers:JH,body:JSON.stringify(state.settings.lastBackup)}).then(r=>{if(!r.ok)throw 0;}).catch(()=>markCfg());
+  renderRemind();}
+function renderRemind(){const lb=state.settings.lastBackup||0;const lbl=$('last-backup');
+  lbl.textContent=lb?'Dernière sauvegarde téléchargée le '+stamp(lb)+'.':'Aucune sauvegarde téléchargée pour l\'instant.';
+  const first=state.entries.length?Math.min(...state.entries.map(e=>e.ts||Date.now())):0;
+  const ref=lb||first;const days=ref?Math.floor((Date.now()-ref)/864e5):0;
+  let snooze='';try{snooze=localStorage.getItem(KEY+'.snooze')||'';}catch(e){}
+  const show=state.entries.length&&days>BACKUP_DAYS&&snooze!==today();
+  $('remind').hidden=!show;
+  if(show)$('remind-t').innerHTML=lb?'<b>Pas de sauvegarde depuis '+days+' jours</b> (dernière le '+frDate(new Date(lb).toISOString().slice(0,10))+'). Pense à télécharger une copie de sécurité.'
+    :'<b>Aucune sauvegarde téléchargée</b> depuis la première saisie, il y a '+days+' jours. Pense à télécharger une copie de sécurité.';}
+$('remind-save').addEventListener('click',()=>{doBackup();go('sauvegarde');});
+$('remind-later').addEventListener('click',()=>{try{localStorage.setItem(KEY+'.snooze',today());}catch(e){}$('remind').hidden=true;});
+function renderAll(){renderRemind();if(typeof renderMod==='function'&&modId)renderMod();$('b-total').textContent=state.entries.length;fillProv();renderRecent();if(!$('v-historique').hidden)renderHist();if(!$('v-stats').hidden)renderStats();}
 $('f-date').value=state.settings.date||today();
 initNumbering();save();showNextRef();
 refreshMenus();fillProv(state.settings.prov||'DON');setEtat('OK');renderAll();
