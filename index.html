@@ -122,6 +122,16 @@ textarea.out{font-family:var(--f-mono);font-size:.78rem;height:90px}
 .sync .sdot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
 .sync[data-s="ok"] .sdot{background:var(--ok)} .sync[data-s="off"] .sdot{background:var(--hs)} .sync[data-s="wait"] .sdot{background:var(--pp)}
 .sync[data-s="off"]{border-color:var(--hs);color:var(--hs)}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.modcard{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:8px;padding:12px}
+.modcard .head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.modcard .head .mono{font-family:var(--f-mono);font-weight:700;font-size:1.15rem}
+.modcard dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 12px;margin:0;font-size:.9rem}
+.modcard dt{color:var(--muted)} .modcard dd{margin:0;overflow-wrap:anywhere}
+.modetats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.modetats .etat{padding:9px 4px;font-size:.95rem}
+.modetats .etat:disabled{cursor:default;opacity:1}
+.exportbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -183,11 +193,19 @@ textarea.out{font-family:var(--f-mono);font-size:.78rem;height:90px}
         <p class="hint">Entrée = enregistrer · Alt+1 / Alt+2 / Alt+3 = OK / HS / Pour pièce · Les choix des menus se gèrent dans l'onglet Listes.</p>
       </form>
 
-      <aside class="panel">
-        <h2>Collecte du <span id="r-date"></span></h2>
-        <div class="tiles" id="r-tiles"></div>
-        <div class="recent" id="r-list"></div>
-      </aside>
+      <div class="col">
+        <section class="panel" aria-labelledby="mod-h">
+          <h2 id="mod-h">Modifier un vélo</h2>
+          <form class="addrow" id="mod-form" autocomplete="off"><input id="mod-ref" class="ref" placeholder="Réf. ex. V1250 ou 1250" aria-label="Référence du vélo à modifier"><button type="submit">Chercher</button></form>
+          <div id="mod-res"></div>
+          <p class="msg" id="mod-msg" role="status" aria-live="polite"></p>
+        </section>
+        <aside class="panel">
+          <h2>Collecte du <span id="r-date"></span></h2>
+          <div class="tiles" id="r-tiles"></div>
+          <div class="recent" id="r-list"></div>
+        </aside>
+      </div>
     </div>
   </section>
 
@@ -229,7 +247,21 @@ textarea.out{font-family:var(--f-mono);font-size:.78rem;height:90px}
           </span>
         </div>
       </div>
+      <div class="field inline">
+        <label class="lbl" for="s-prov">Provenance</label><select id="s-prov"></select>
+        <label class="lbl" for="s-etat">État</label><select id="s-etat"><option value="">Tous</option><option>OK</option><option>HS</option><option value="POUR PIECE">POUR PIÈCE</option></select>
+        <label class="lbl" for="s-type">Type</label><select id="s-type"></select>
+        <button type="button" class="ghost small" id="s-reset">Effacer les filtres</button>
+      </div>
       <div class="tiles" id="s-tiles"></div>
+      <div class="exportbar">
+        <span class="lbl">Exporter ce qui est affiché</span>
+        <button type="button" class="primary" id="x-stats">Statistiques (CSV)</button>
+        <button type="button" id="x-list">Liste des vélos (CSV)</button>
+        <button type="button" id="x-copy">Copier les statistiques</button>
+      </div>
+      <p class="msg" id="s-msg" role="status" aria-live="polite"></p>
+      <textarea class="out" id="s-out" readonly aria-label="Statistiques à copier" hidden></textarea>
     </div>
     <div class="statgrid" id="s-blocks"></div>
   </section>
@@ -310,7 +342,7 @@ const cfgObj=()=>({lists:state.lists,refPrefix:state.settings.refPrefix,refStart
 function markPut(id){state.pending[id]='put';save();sync();}
 function markDel(id){state.pending[id]='del';save();sync();}
 function markCfg(force){state.cfgDirty=true;if(force)state.cfgForce=true;save();sync();}
-function clean(e){return{id:e.id,ts:e.ts||Date.now(),date:e.date||'',ref:U(e.ref),etat:e.etat||'OK',prov:U(e.prov),poids:num(e.poids)||0,marque:U(e.marque),modele:U(e.modele),type:e.type||'',roue:e.roue||'',taille:e.taille||'',couleur:U(e.couleur),autres:e.autres||''};}
+function clean(e){return{maj:e.maj||0,id:e.id,ts:e.ts||Date.now(),date:e.date||'',ref:U(e.ref),etat:e.etat||'OK',prov:U(e.prov),poids:num(e.poids)||0,marque:U(e.marque),modele:U(e.modele),type:e.type||'',roue:e.roue||'',taille:e.taille||'',couleur:U(e.couleur),autres:e.autres||''};}
 function setSync(s,t){const b=$('sync');if(!b)return;b.dataset.s=s;$('sync-t').textContent=t;}
 function syncLabel(){const n=Object.keys(state.pending).length,w=n?' · '+n+' vélo'+(n>1?'s':'')+' à envoyer':(state.cfgDirty?' · réglages à envoyer':'');
   if(online)setSync(w?'wait':'ok',w?'En ligne'+w:'En ligne · à jour '+new Date(lastOk).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
@@ -439,7 +471,7 @@ $('form').addEventListener('submit',async e=>{
     f.ref=state.settings.refPrefix+n;state.settings.lastNum=Math.max(state.settings.lastNum||0,n);
     saving=false;$('btn-save').disabled=false;}
   const rec={date:f.date,prov:f.prov,ref:f.ref,etat:f.etat,poids:num(f.poidsRaw),marque:f.marque,modele:f.modele,type:f.type,roue:f.roue,taille:f.taille,couleur:f.couleur,autres:f.autres};
-  if(editId){const id=editId;const i=state.entries.findIndex(x=>x.id===id);if(i>=0){rec.ref=state.entries[i].ref;Object.assign(state.entries[i],rec);}showMsg(rec.ref+' modifié.','ok');endEdit();markPut(id);}
+  if(editId){const id=editId;const i=state.entries.findIndex(x=>x.id===id);if(i>=0){rec.ref=state.entries[i].ref;rec.maj=Date.now();Object.assign(state.entries[i],rec);}showMsg(rec.ref+' modifié.','ok');endEdit();markPut(id);}
   else{const nid=Date.now().toString(36)+Math.random().toString(36).slice(2,6);state.entries.push(Object.assign({id:nid,ts:Date.now()},rec));state.pending[nid]='put';
     showMsg(rec.ref+' enregistré ('+rec.etat+', '+kg(rec.poids)+' kg)'+(online===false?' sur cet appareil : il sera envoyé en ligne au retour de la connexion.':'.'),'ok');
     state.settings.lastNum=Math.max(state.settings.lastNum||0,refNum(rec.ref,state.settings.refPrefix)||0);showNextRef();state.settings.date=f.date;state.settings.prov=f.prov;save();resetBike();sync();}
@@ -457,6 +489,32 @@ function startEdit(id){const x=state.entries.find(e=>e.id===id);if(!x)return;edi
   $('btn-save').textContent='Enregistrer la modification';$('btn-cancel').hidden=false;showMsg('Modification de '+x.ref+'.','');$('f-poids').focus();}
 function endEdit(){editId=null;$('btn-save').textContent='Enregistrer et suivant';$('btn-cancel').hidden=true;editId=null;showNextRef();$('f-date').value=state.settings.date||today();fillProv(state.settings.prov||'');resetBike();}
 $('btn-cancel').addEventListener('click',()=>{endEdit();showMsg('','');});
+
+/* ---------- modifier un vélo ---------- */
+let modId=null;
+function findRefs(q){q=U(q).replace(/\s+/g,'');if(!q)return[];
+  let r=state.entries.filter(e=>e.ref===q);
+  if(!r.length&&/^\d+$/.test(q))r=state.entries.filter(e=>{const m=e.ref.match(/(\d+)$/);return m&&+m[1]===+q;});
+  return r.sort((a,b)=>b.ts-a.ts);}
+function modMsg(t,c){const m=$('mod-msg');m.textContent=t;m.className='msg '+(c||'');}
+function renderMod(){const box=$('mod-res');const x=modId&&state.entries.find(e=>e.id===modId);
+  if(!x){box.innerHTML='';return;}
+  const row=(k,v)=>v?'<dt>'+k+'</dt><dd>'+esc(v)+'</dd>':'';
+  box.innerHTML='<div class="modcard"><div class="head"><span class="mono">'+esc(x.ref)+'</span><span class="pill '+pillCls(x.etat)+'">'+esc(x.etat)+'</span><span class="hint">'+frDate(x.date)+' · '+esc(x.prov)+'</span></div>'
+   +'<dl>'+row('Poids',kg(x.poids)+' kg')+row('Marque',[x.marque,x.modele].filter(Boolean).join(' · '))+row('Type',[x.type,x.roue&&x.roue+'"',x.taille].filter(Boolean).join(' · '))+row('Couleur',x.couleur)+row('Autres infos',x.autres)+'</dl>'
+   +'<span class="lbl">Changer l\'état</span><div class="modetats">'+['OK','HS','POUR PIECE'].map(v=>'<button type="button" class="etat" data-v="'+v+'" data-setetat="'+v+'" aria-pressed="'+(x.etat===v)+'"'+(x.etat===v?' disabled':'')+'>'+(v==='POUR PIECE'?'POUR PIÈCE':v)+'</button>').join('')+'</div>'
+   +'<div class="actions"><button type="button" id="mod-full">Modifier toute la fiche</button><button type="button" class="ghost" id="mod-close">Fermer</button></div></div>';}
+$('mod-form').addEventListener('submit',e=>{e.preventDefault();const q=$('mod-ref').value;const r=findRefs(q);
+  if(!q.trim()){modMsg('Tape une référence.','err');return;}
+  if(!r.length){modId=null;renderMod();modMsg('Aucun vélo avec la référence '+U(q)+'.','err');return;}
+  modId=r[0].id;renderMod();modMsg(r.length>1?r.length+' vélos portent ce numéro : le plus récent est affiché. Les autres sont dans l\'Historique.':'','');});
+$('mod-res').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const x=state.entries.find(z=>z.id===modId);if(!x)return;
+  if(b.id==='mod-close'){modId=null;$('mod-ref').value='';renderMod();modMsg('','');return;}
+  if(b.id==='mod-full'){startEdit(x.id);modMsg('Fiche '+x.ref+' ouverte dans le formulaire : modifie puis enregistre.','ok');return;}
+  const v=b.dataset.setetat;if(!v||v===x.etat)return;
+  if(v==='OK'&&!(x.marque&&x.type&&x.roue&&x.taille&&x.couleur)){startEdit(x.id);setEtat('OK');
+    modMsg('Pour passer '+x.ref+' en OK, complète marque, type, roue, taille et couleur dans le formulaire, puis enregistre.','err');showMsg('Passage de '+x.ref+' en OK : complète les champs en rouge.','err');validate(readForm());return;}
+  const old=x.etat;x.etat=v;x.maj=Date.now();markPut(x.id);renderAll();renderMod();modMsg(x.ref+' : '+old+' → '+v+'.','ok');});
 
 /* ---------- récap du jour ---------- */
 function tilesHTML(list){const tot=list.reduce((s,e)=>s+e.poids,0);const c=v=>list.filter(e=>e.etat===v).length;
@@ -513,16 +571,57 @@ function quarterTable(list){const keys=[...new Set(list.map(e=>qKey(e.date)))].s
   const rows=keys.map(k=>{const l=list.filter(e=>qKey(e.date)===k);const c=v=>l.filter(e=>e.etat===v).length;const w=l.reduce((s,e)=>s+e.poids,0);
     return '<tr><td><b>'+k.slice(5)+' '+k.slice(0,4)+'</b></td><td class="num">'+l.length+'</td><td class="num">'+kg(w)+'</td><td class="num">'+c('OK')+'</td><td class="num">'+c('HS')+'</td><td class="num">'+c('POUR PIECE')+'</td><td class="num">'+Math.round(c('OK')/l.length*100)+' %</td></tr>';}).join('');
   return '<div class="panel" style="grid-column:1/-1"><h2>Par trimestre</h2><div class="tablewrap" style="max-height:none"><table><thead><tr><th>Trimestre</th><th class="num">Vélos</th><th class="num">Poids (kg)</th><th class="num">OK</th><th class="num">HS</th><th class="num">Pour pièce</th><th class="num">Taux OK</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';}
-function renderStats(){const per=$('sper').value;$('custom').hidden=per!=='custom';$('qpick').hidden=per!=='pickq';fillQYears();
-  const list=inPeriod(per,state.entries);$('s-tiles').innerHTML=tilesHTML(list);
-  if(!list.length){$('s-blocks').innerHTML='<div class="panel"><p class="empty">Pas encore de vélo sur cette période. Les répartitions par mois, provenance, type, roue, taille et marque apparaîtront ici.</p></div>';return;}
+function fillStatFilters(){const opt=(id,vals,all)=>{const sel=$(id);const cur=sel.value;sel.innerHTML='<option value="">'+all+'</option>'+vals.map(v=>'<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>').join('');};
+  opt('s-prov',[...new Set([...state.lists.prov,...state.entries.map(e=>e.prov)])].filter(Boolean),'Toutes');
+  opt('s-type',[...new Set([...state.lists.type,...state.entries.map(e=>e.type)])].filter(Boolean),'Tous');}
+function statList(){let l=inPeriod($('sper').value,state.entries);const p=$('s-prov').value,et=$('s-etat').value,t=$('s-type').value;
+  if(p)l=l.filter(e=>e.prov===p);if(et)l=l.filter(e=>e.etat===et);if(t)l=l.filter(e=>e.type===t);return l;}
+function periodLabel(){const per=$('sper').value,d=$('f-date').value||today();
+  if(per==='day')return 'Collecte du '+frDate(d);
+  if(per==='month')return MOIS[+d.slice(5,7)-1]+' '+d.slice(0,4);
+  if(per==='quarter')return qKey(d).slice(5)+' '+d.slice(0,4);
+  if(per==='pickq')return 'T'+$('s-q').value+' '+$('s-qy').value;
+  if(per==='year')return 'Année '+d.slice(0,4);
+  if(per==='custom')return 'Du '+(frDate($('s-from').value)||'début')+' au '+(frDate($('s-to').value)||"aujourd'hui");
+  return 'Toutes les saisies';}
+function filtersLabel(){const f=[];if($('s-prov').value)f.push('Provenance : '+$('s-prov').value);if($('s-etat').value)f.push('État : '+$('s-etat').value);if($('s-type').value)f.push('Type : '+$('s-type').value);return f.length?f.join(' · '):'Aucun';}
+function breakdown(list,keyFn,sortKeys){const m=new Map();list.forEach(e=>{const k=keyFn(e)||'(non renseigné)';const g=m.get(k)||{n:0,w:0,OK:0,HS:0,PP:0};g.n++;g.w+=e.poids;g[pillCls(e.etat)]=(g[pillCls(e.etat)]||0)+1;m.set(k,g);});
+  const a=[...m.entries()];a.sort(sortKeys?(x,y)=>x[0].localeCompare(y[0]):(x,y)=>y[1].n-x[1].n);return a;}
+function statsRows(){const list=statList();const tot=list.reduce((s,e)=>s+e.poids,0);const c=v=>list.filter(e=>e.etat===v).length;const w=v=>list.filter(e=>e.etat===v).reduce((s,e)=>s+e.poids,0);
+  const pc=n=>list.length?Math.round(n/list.length*100)+' %':'';const n2=x=>(Math.round(x*100)/100).toString().replace('.',',');
+  const R=[['Statistiques Collecte Vélos — AMS Angers Mob Services'],['Période',periodLabel()],['Filtres',filtersLabel()],['Exporté le',stamp(Date.now())],[],
+    ['Indicateur','Nombre','Poids (kg)','Part'],['Vélos',list.length,n2(tot),''],['Poids moyen (kg)','',n2(list.length?tot/list.length:0),''],
+    ['OK',c('OK'),n2(w('OK')),pc(c('OK'))],['HS',c('HS'),n2(w('HS')),pc(c('HS'))],['Pour pièce',c('POUR PIECE'),n2(w('POUR PIECE')),pc(c('POUR PIECE'))]];
+  const sec=(title,a)=>{R.push([],[title],['','Vélos','Poids (kg)','OK','HS','Pour pièce','Taux OK']);a.forEach(([k,g])=>R.push([k,g.n,n2(g.w),g.OK||0,g.HS||0,g.PP||0,Math.round((g.OK||0)/g.n*100)+' %']));};
+  if(list.length){
+    sec('Par trimestre',breakdown(list,e=>qKey(e.date).slice(5)+' '+e.date.slice(0,4),true).sort((x,y)=>x[0].slice(3).localeCompare(y[0].slice(3))||x[0].localeCompare(y[0])));
+    sec('Par mois',breakdown(list,e=>e.date.slice(0,7),true).map(([k,g])=>[MOIS[+k.slice(5)-1]+' '+k.slice(0,4),g]));
+    sec('Par provenance',breakdown(list,e=>e.prov));sec('Par type',breakdown(list,e=>e.type));sec('Par roue',breakdown(list,e=>e.roue));
+    sec('Par taille du cadre',breakdown(list,e=>e.taille));sec('Par marque',breakdown(list,e=>e.marque));}
+  return R.map(r=>r.map(v=>String(v).trim()));}
+function smsg(t,c){const m=$('s-msg');m.textContent=t;m.className='msg '+(c||'');}
+function dl(name,content,type){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();smsg(name+' téléchargé.','ok');}
+  catch(e){smsg('Téléchargement impossible ici. Utilise « Copier les statistiques ».','err');}}
+const csv=rows=>'﻿'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');
+const fileTag=()=>periodLabel().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+$('x-stats').addEventListener('click',()=>{if(!statList().length){smsg('Aucun vélo avec ces filtres : rien à exporter.','err');return;}dl('stats-velos-ams-'+fileTag()+'.csv',csv(statsRows()),'text/csv');});
+$('x-list').addEventListener('click',()=>{const l=statList().sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts);if(!l.length){smsg('Aucun vélo avec ces filtres : rien à exporter.','err');return;}
+  dl('velos-ams-'+fileTag()+'.csv',csv([HEAD,...l.map(COLS)]),'text/csv');});
+$('x-copy').addEventListener('click',()=>{if(!statList().length){smsg('Aucun vélo avec ces filtres : rien à copier.','err');return;}
+  const txt=statsRows().map(r=>r.map(v=>v.replace(/[\t\r\n]+/g,' ')).join('\t')).join('\n');const out=$('s-out');out.value=txt;
+  const fb2=()=>{out.hidden=false;out.focus();out.select();smsg('Copie automatique refusée : le texte est sélectionné, fais Ctrl+C.','err');};
+  try{navigator.clipboard.writeText(txt).then(()=>{out.hidden=true;smsg('Statistiques copiées : colle-les dans Excel avec Ctrl+V.','ok');},fb2);}catch(e){fb2();}});
+$('s-reset').addEventListener('click',()=>{['s-prov','s-etat','s-type'].forEach(id=>$(id).value='');renderStats();});
+function renderStats(){const per=$('sper').value;$('custom').hidden=per!=='custom';$('qpick').hidden=per!=='pickq';fillQYears();fillStatFilters();
+  const list=statList();$('s-tiles').innerHTML=tilesHTML(list);
+  if(!list.length){$('s-blocks').innerHTML='<div class="panel"><p class="empty">Aucun vélo pour cette période et ces filtres. Les répartitions par mois, provenance, type, roue, taille et marque apparaîtront ici.</p></div>';return;}
   const ok=list.filter(e=>e.etat==='OK');
   const months=new Set(list.map(e=>e.date.slice(0,7)));
   const ml=list.map(e=>Object.assign({},e,{mois:e.date.slice(0,7)+' · '+MOIS[+e.date.slice(5,7)-1]}));
   const quarters=new Set(list.map(e=>qKey(e.date)));
   $('s-blocks').innerHTML=(quarters.size>1?quarterTable(list):'')+(months.size>1?bars('Par mois',ml,'mois',null,true):'')+bars('Par état',list,'etat',pillCls)+bars('Par provenance',list,'prov')
    +(ok.length?bars('Par type (vélos OK)',ok,'type')+bars('Par roue (vélos OK)',ok,'roue')+bars('Par taille du cadre (vélos OK)',ok,'taille')+bars('Marques les plus fréquentes (vélos OK)',ok,'marque',null,false,12):'');}
-['sper','s-from','s-to','s-q','s-qy'].forEach(id=>$(id).addEventListener('change',renderStats));
+['sper','s-from','s-to','s-q','s-qy','s-prov','s-etat','s-type'].forEach(id=>$(id).addEventListener('change',renderStats));
 
 /* ---------- listes ---------- */
 function renderNum(){$('n-prefix').value=state.settings.refPrefix;$('n-next').value=nextNum();}
@@ -572,7 +671,7 @@ $('btn-purge').addEventListener('click',()=>{const n=state.entries.length;
   const ok=$('purge-ok');if(ok){ok.onclick=()=>{state.entries.forEach(e=>state.pending[e.id]='del');state.entries=[];save();sync();$('purgebox').innerHTML='';if(editId)endEdit();renderAll();xmsg('Toutes les saisies ont été effacées.','ok');};$('purge-no').onclick=()=>{$('purgebox').innerHTML='';};}});
 
 /* ---------- démarrage ---------- */
-function renderAll(){$('b-total').textContent=state.entries.length;fillProv();renderRecent();if(!$('v-historique').hidden)renderHist();if(!$('v-stats').hidden)renderStats();}
+function renderAll(){if(typeof renderMod==='function'&&modId)renderMod();$('b-total').textContent=state.entries.length;fillProv();renderRecent();if(!$('v-historique').hidden)renderHist();if(!$('v-stats').hidden)renderStats();}
 $('f-date').value=state.settings.date||today();
 initNumbering();save();showNextRef();
 refreshMenus();fillProv(state.settings.prov||'DON');setEtat('OK');renderAll();
